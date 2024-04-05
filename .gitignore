@@ -1,0 +1,21 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+health-fitness-club-app/node_modules/
+health-fitness-club-app/backend/node_modules/
+health-fitness-club-app/.pnp
+health-fitness-club-app/.pnp.js
+
+# production
+health-fitness-club-app/build
+
+# misc
+health-fitness-club-app/.DS_Store
+health-fitness-club-app/.env.local
+health-fitness-club-app/.env.development.local
+health-fitness-club-app/.env.test.local
+health-fitness-club-app/.env.production.local
+
+health-fitness-club-app/npm-debug.log*
+health-fitness-club-app/yarn-debug.log*
+health-fitness-club-app/yarn-error.log*

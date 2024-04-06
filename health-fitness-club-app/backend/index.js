@@ -9,13 +9,27 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../build')));
 
-// PostgreSQL sample query:
-app.get('/api/members', async (req, res) => {
+// PostgreSQL query to fetch member details including user account information
+app.get('/api/memberDetails', async (req, res) => {
   try {
-    const allMembers = await pool.query('SELECT * FROM member');
-    res.json(allMembers.rows);
+    const memberDetails = await pool.query(`
+      SELECT 
+        member.*, 
+        user_account.email, 
+        user_account.first_name, 
+        user_account.last_name, 
+        user_account.phone, 
+        user_account.address, 
+        user_account.birthday
+      FROM 
+        member
+      INNER JOIN 
+        user_account ON member.user_id = user_account.user_id;
+    `);
+    res.json(memberDetails.rows);
   } catch (err) {
     console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

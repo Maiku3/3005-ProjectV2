@@ -1,17 +1,36 @@
-import React from 'react';
-import Dashboard from './components/Dashboard';
+import React, { useState } from 'react';
+import LoginRegister from './components/LoginRegister';
 import MemberProfile from './components/MemberProfile';
 import TrainerSchedule from './components/TrainerSchedule';
 import AdminPanel from './components/AdminPanel';
 
 function App() {
+  const [userRole, setUserRole] = useState(null);
+
+  const handleLogin = (role) => {
+    setUserRole(role);
+  };
+
+  const renderComponentBasedOnRole = (role) => {
+    switch (role) {
+      case 'Member':
+        return <MemberProfile />;
+      case 'Trainer':
+        return <TrainerSchedule />;
+      case 'Admin':
+        return <AdminPanel />;
+      default:
+        return null;
+    }
+  };
+
   return (
     <div>
-      <h1>Health and Fitness Club Management System</h1>
-      <Dashboard />
-      <MemberProfile />
-      <TrainerSchedule />
-      <AdminPanel />
+      {!userRole ? (
+        <LoginRegister onLogin={handleLogin} />
+      ) : (
+        renderComponentBasedOnRole(userRole)
+      )}
     </div>
   );
 }

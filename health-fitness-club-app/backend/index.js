@@ -9,27 +9,59 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static(path.join(__dirname, '../build')));
 
-// PostgreSQL query to fetch member details including user account information
-app.get('/api/memberDetails', async (req, res) => {
+// Login endpoint
+app.post('/api/login', async (req, res) => {
+  const { email, password } = req.body;
   try {
-    const memberDetails = await pool.query(`
-      SELECT 
-        member.*, 
-        user_account.email, 
-        user_account.first_name, 
-        user_account.last_name, 
-        user_account.phone, 
-        user_account.address, 
-        user_account.birthday
-      FROM 
-        member
-      INNER JOIN 
-        user_account ON member.user_id = user_account.user_id;
-    `);
-    res.json(memberDetails.rows);
+    const user = await pool.query(
+      `SELECT * FROM user_account WHERE email = $1 AND password = $2`,
+      [email, password]
+    );
+    if (user.rows.length > 0) {
+      const userInfo = user.rows[0];
+      res.json({ role: userInfo.role });
+    } else {
+      res.status(400).json({ error: 'Invalid credentials' });
+    }
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Registration endpoint
+app.post('/api/register', async (req, res) => {
+  const { email, password, firstName, lastName, phone, address, birthday, role, joinDate, membershipEndDate } = req.body;
+  
+  try {
+    await pool.query('BEGIN');
+
+    const newUser = await pool.query(
+      `INSERT INTO user_account (email, password, first_name, last_name, phone, address, birthday, role)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8) RETURNING *`,
+      [email, password, firstName, lastName, phone, address, birthday, role]
+    );
+
+    const user_id = newUser.rows[0].user_id;
+
+    await pool.query(
+      `INSERT INTO member (user_id, join_date, membership_end_date)
+       VALUES ($1, $2, $3)`,
+      [user_id, joinDate, membershipEndDate]
+    );
+
+    await pool.query('COMMIT');
+
+    res.json({ role: newUser.rows[0].role });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    
+    console.error(err.message);
+    if (err.code === '23505') {
+      res.status(400).json({ error: 'User already exists' });
+    } else {
+      res.status(500).json({ error: 'Registration failed' });
+    }
   }
 });
 

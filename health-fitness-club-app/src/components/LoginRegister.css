@@ -1,0 +1,64 @@
+.login-register-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    background-color: #f0f8ff;
+}
+  
+.login-register-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 20px;
+    background-color: #ffffff;
+    border-radius: 10px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    max-width: 400px;
+    margin: auto;
+    margin-top: 50px;
+}
+  
+.login-register-container h1 {
+    color: #333;
+}
+  
+.login-register-container input,
+.login-register-container button {
+    padding: 10px;
+    margin: 10px 0;
+    border-radius: 5px;
+    border: 1px solid #ccc;
+    width: calc(100% - 22px); /* Adjust width based on padding and border */
+}
+  
+.login-register-container input {
+    background-color: #f7f7f7;
+}
+  
+.login-register-container button {
+    background-color: #ddd;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+}
+  
+.login-register-container button:hover {
+    background-color: #bbb;
+}
+  
+.login-register-container button:focus,
+.login-register-container input:focus {
+    outline: none;
+    border-color: #777;
+}
+
+.birthday-label {
+    margin-left: -330px;
+    margin-bottom: -5px;
+    font-size: 14px;
+    color: #777;
+}

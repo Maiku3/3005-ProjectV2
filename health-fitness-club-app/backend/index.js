@@ -19,7 +19,7 @@ app.post('/api/login', async (req, res) => {
     );
     if (user.rows.length > 0) {
       const userInfo = user.rows[0];
-      res.json({ role: userInfo.role });
+      res.json({ role: userInfo.role, id: userInfo.user_id });
     } else {
       res.status(400).json({ error: 'Invalid credentials' });
     }
@@ -51,8 +51,7 @@ app.post('/api/register', async (req, res) => {
     );
 
     await pool.query('COMMIT');
-
-    res.json({ role: newUser.rows[0].role });
+    res.json({ role: newUser.rows[0].role, id: user_id });
   } catch (err) {
     await pool.query('ROLLBACK');
     
@@ -62,6 +61,21 @@ app.post('/api/register', async (req, res) => {
     } else {
       res.status(500).json({ error: 'Registration failed' });
     }
+  }
+});
+
+// Endpoint to get health metrics for a specific user
+app.get('/api/health-stats/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const healthMetrics = await pool.query(
+      `SELECT * FROM health_metric WHERE member_id = $1 ORDER BY date DESC`,
+      [userId]
+    );
+    res.json(healthMetrics.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
   }
 });
 

@@ -27,7 +27,7 @@ const LoginRegister = ({ onLogin }) => {
         }
 
         const data = await response.json();
-
+        sessionStorage.setItem('userId', data.id);
         onLogin(data.role);
       } catch (error) {
         alert('Login failed. Please try again.');
@@ -69,6 +69,7 @@ const LoginRegister = ({ onLogin }) => {
         }
 
         const data = await response.json();
+        sessionStorage.setItem('userId', data.id);
         onLogin(data.role);
       } catch (error) {
         alert('Registration failed. Please try again.');

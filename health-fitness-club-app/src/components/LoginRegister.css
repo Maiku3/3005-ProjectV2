@@ -32,7 +32,7 @@ body {
     margin: 10px 0;
     border-radius: 5px;
     border: 1px solid #ccc;
-    width: calc(100% - 22px); /* Adjust width based on padding and border */
+    width: calc(100% - 22px);
 }
   
 .login-register-container input {

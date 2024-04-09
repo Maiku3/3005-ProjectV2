@@ -64,6 +64,55 @@ app.post('/api/register', async (req, res) => {
   }
 });
 
+// Backend endpoint to get first name for a specific user
+app.get('/api/first-name/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const userDetails = await pool.query(
+      `SELECT first_name FROM user_account WHERE user_id = $1`,
+      [userId]
+    );
+    if (userDetails.rows.length > 0) {
+      res.json(userDetails.rows[0]);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to get exercise routines for a specific user
+app.get('/api/exercise-routines/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const exerciseRoutines = await pool.query(
+      `SELECT * FROM exercise_routine WHERE member_id = $1 ORDER BY routine_id`,
+      [userId]
+    );
+    res.json(exerciseRoutines.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to get completed fitness goals for a specific user
+app.get('/api/fitness-achievements/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const completedGoals = await pool.query(
+      `SELECT * FROM fitness_goal WHERE member_id = $1 AND is_completed = TRUE ORDER BY goal_id`,
+      [userId]
+    );
+    res.json(completedGoals.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Endpoint to get health metrics for a specific user
 app.get('/api/health-stats/:userId', async (req, res) => {
   const { userId } = req.params;

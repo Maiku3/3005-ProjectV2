@@ -1,33 +1,78 @@
-.profile-container {
+.top-bar {
   display: flex;
+  height: 100px;
+  width: 100%;
+}
+
+.profile-picture {
+  position: fixed;
+  right: 0;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-right: 20px;
+  border: 2px solid #ccc;
+  border-radius: 50%;
+  cursor: default;
+  transition: all 0.3s ease;
+}
+
+.profile-picture:hover {
+  border-color: #999;
+  transform: scale(1.05);
+  cursor: pointer;
+}
+
+.profile-picture h1 {
+  margin: 0 auto;
+  font-size: 20px;
+  color: #333;
+}
+
+.profile-container {
   justify-content: space-between;
-  height: 100vh;
+  height: calc(100vh - 60px);
   max-height: 100vh;
   padding: 20px;
+  overflow: hidden;
 }
 
-.left-section,
-.right-section {
+.columns {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
+  height: 100%;
 }
 
-.box,
-.health-stat-box {
+.left-box {
+  height: 27%;
   background-color: #f0f0f0;
   border-radius: 10px;
   padding: 20px;
   margin-bottom: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
+}
+
+.right-box {
+  height: 41.5%;
+  background-color: #f0f0f0;
+  border-radius: 10px;
+  padding: 20px;
+  margin-bottom: 20px;
+  box-sizing: border-box;
+  overflow-y: auto;
 }
   
 
 .left-section {
   flex: 1;
   margin-right: 10px;
+  height: 100%;
 }
   
 .right-section {
   flex: 1;
   margin-left: 10px;
+  height: 100%;
 }

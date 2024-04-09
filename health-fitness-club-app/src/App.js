@@ -31,6 +31,7 @@ function App() {
       ) : (
         renderComponentBasedOnRole(userRole)
       )}
+      {/* <MemberProfile /> */}
     </div>
   );
 }

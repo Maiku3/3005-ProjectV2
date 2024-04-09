@@ -88,3 +88,65 @@ const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
+
+// Endpoint to get list of members
+app.get('/api/members', async (req, res) => {
+  try {
+    const members = await pool.query(
+      `SELECT * FROM user_account WHERE role = 'member'`
+    );
+    res.json(members.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to create a training session with a booking slot 
+app.post('/api/create-training-session', async (req, res) => {
+  const { trainerId, memberId, date, startTime, endTime } = req.body;
+  try {
+    await pool.query('BEGIN');
+    
+    const bookingSlot = await pool.query(
+      `INSERT INTO booking_slot (date, start_time, end_time)
+       VALUES ($1, $2, $3) 
+       RETURNING slot_id`,
+       [date, startTime, endTime]
+    );
+
+    const slotId = bookingSlot.rows[0].slot_id;
+
+    await pool.query(
+      `INSERT INTO training_session (trainer_id, member_id, slot_id)
+       VALUES ($1, $2, $3)`,
+      [trainerId, memberId, slotId]
+    );
+
+    await pool.query('COMMIT');
+    res.json({ message: 'New Training Session Created' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  } finally  {
+    await pool.end();
+  }
+});
+
+// Endpoint to get a list of training sessions of a certain trainer
+app.get('/api/training-sessions/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const trainingSessions = await pool.query(
+      `SELECT * 
+      FROM training_session 
+      WHERE trainer_id = $1`,
+      [userId]
+    );
+    res.json(trainingSessions.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});

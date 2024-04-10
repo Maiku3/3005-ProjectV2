@@ -128,16 +128,6 @@ app.get('/api/health-stats/:userId', async (req, res) => {
   }
 });
 
-// This route will redirect any requests that don't match an API endpoint or static file to the React app
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, '../build/index.html'));
-});
-
-const PORT = process.env.PORT || 3001;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
-});
-
 // Endpoint to get list of members
 app.get('/api/members', async (req, res) => {
   try {
@@ -198,4 +188,153 @@ app.get('/api/training-sessions/:userId', async (req, res) => {
     console.error(err.message);
     res.status(500).json({ error: err.message });
   }
+});
+
+// Backend endpoint to get all classes with registration status for a specific user
+app.get('/api/classes/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const classesData = await pool.query(
+      `SELECT cl.class_id, cl.class_name, bs.date, bs.start_time, r.room_name,
+       CASE WHEN cr.member_id = $1 THEN true ELSE false END AS is_registered
+       FROM class cl
+       JOIN booking_slot bs ON cl.slot_id = bs.slot_id
+       JOIN room r ON cl.room_id = r.room_id
+       LEFT JOIN class_registration cr ON cl.class_id = cr.class_id AND cr.member_id = $1
+       ORDER BY bs.date, bs.start_time`,
+      [userId]
+    );
+    res.json(classesData.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to register a user for a class
+app.post('/api/register-class', async (req, res) => {
+  const { userId, classId } = req.body;
+  try {
+    await pool.query(
+      `INSERT INTO class_registration (member_id, class_id) VALUES ($1, $2)`,
+      [userId, classId]
+    );
+    res.status(201).json({ message: 'Registration successful' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to cancel a user's registration for a class
+app.delete('/api/cancel-class', async (req, res) => {
+  const { userId, classId } = req.body;
+  try {
+    const result = await pool.query(
+      `DELETE FROM class_registration WHERE member_id = $1 AND class_id = $2`,
+      [userId, classId]
+    );
+    if (result.rowCount > 0) {
+      res.json({ message: 'Cancellation successful' });
+    } else {
+      res.status(404).json({ message: 'Registration not found' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to get all training sessions including available sessions
+app.get('/api/list-training-sessions/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const trainingSessionsData = await pool.query(
+      `SELECT
+          ts.session_id,
+          ts.trainer_id,
+          u.first_name || ' ' || u.last_name AS trainer_name,
+          ts.member_id,
+          bs.date,
+          bs.start_time,
+          bs.end_time,
+          r.room_name,
+          CASE WHEN ts.member_id = $1 THEN 'registered' ELSE 'available' END AS session_status
+       FROM
+          training_session ts
+       JOIN
+          booking_slot bs ON ts.slot_id = bs.slot_id
+       JOIN
+          room r ON bs.room_id = r.room_id
+       JOIN
+          trainer t ON ts.trainer_id = t.user_id
+       JOIN
+          user_account u ON t.user_id = u.user_id
+       WHERE
+          ts.member_id = $1 OR ts.member_id IS NULL
+       ORDER BY
+          bs.date, bs.start_time`,
+      [userId]
+    );
+    res.json(trainingSessionsData.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to register for a training session
+app.post('/api/register-training-session', async (req, res) => {
+  const { userId, sessionId } = req.body;
+  try {
+    const updateData = await pool.query(
+      `UPDATE training_session
+       SET member_id = $1
+       WHERE session_id = $2 AND member_id IS NULL
+       RETURNING *`,
+      [userId, sessionId]
+    );
+
+    if (updateData.rowCount === 0) {
+      return res.status(404).json({ message: 'Session not found or already registered' });
+    }
+
+    res.json(updateData.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to cancel a training session registration
+app.post('/api/cancel-training-session', async (req, res) => {
+  const { userId, sessionId } = req.body;
+  try {
+    const updateData = await pool.query(
+      `UPDATE training_session
+       SET member_id = NULL
+       WHERE session_id = $1 AND member_id = $2
+       RETURNING *`, // This will return the updated row
+      [sessionId, userId]
+    );
+
+    if (updateData.rowCount === 0) {
+      return res.status(404).json({ message: 'Session not found or not registered by this user' });
+    }
+
+    res.json(updateData.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// This route will redirect any requests that don't match an API endpoint or static file to the React app
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, '../build/index.html'));
+});
+
+const PORT = process.env.PORT || 3001;
+app.listen(PORT, () => {
+  console.log(`Server is running on port ${PORT}`);
 });

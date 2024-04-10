@@ -76,11 +76,11 @@ CREATE TABLE booking_slot (
 CREATE TABLE training_session (
     session_id SERIAL PRIMARY KEY,
     trainer_id INTEGER NOT NULL,
-    member_id INTEGER NOT NULL,
+    member_id INTEGER,
     slot_id INTEGER NOT NULL, 
     FOREIGN KEY (trainer_id) REFERENCES trainer(user_id),
     FOREIGN KEY (member_id) REFERENCES member(user_id),
-    FOREIGN KEY (slot_id) REFERENCES booking_slot(slot_id) 
+    FOREIGN KEY (slot_id) REFERENCES booking_slot(slot_id)
 );
 
 CREATE TABLE class (

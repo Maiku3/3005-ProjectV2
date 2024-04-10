@@ -76,3 +76,46 @@
   margin-left: 10px;
   height: 100%;
 }
+
+.classes-section {
+  margin-bottom: 20px;
+}
+
+.classes-section h3 {
+  margin-bottom: 10px;
+}
+
+.classes-list, .training-sessions-list {
+  list-style: none;
+  padding: 0;
+}
+
+.classes-list li, .training-sessions-list li {
+  margin-bottom: 5px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 5px;
+}
+
+.register-btn, .cancel-btn {
+  padding: 5px 10px;
+  margin-left: 10px;
+  border: none;
+  border-radius: 15px;
+  cursor: pointer;
+}
+
+.register-btn {
+  background-color: #4CAF50;
+  color: white;
+}
+
+.cancel-btn {
+  background-color: #f44336;
+  color: white;
+}
+
+.class-time {
+  font-weight: normal;
+  color: #555;
+}

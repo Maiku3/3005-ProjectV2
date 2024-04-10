@@ -329,6 +329,26 @@ app.post('/api/cancel-training-session', async (req, res) => {
   }
 });
 
+// Backend endpoint to get personal information for a specific user
+app.get('/api/personal-info/:userId', async (req, res) => {
+  const { userId } = req.params;
+  try {
+    const userInfo = await pool.query(
+      `SELECT first_name, last_name, email, phone, address, birthday FROM user_account WHERE user_id = $1`,
+      [userId]
+    );
+    if (userInfo.rows.length > 0) {
+      res.json(userInfo.rows[0]);
+    } else {
+      res.status(404).json({ error: 'User not found' });
+    }
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // This route will redirect any requests that don't match an API endpoint or static file to the React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../build/index.html'));

@@ -14,7 +14,7 @@ function App() {
   const renderComponentBasedOnRole = (role) => {
     switch (role) {
       case 'Member':
-        return <MemberProfile />;
+        return <MemberProfile setUserRole={setUserRole}/>;
       case 'Trainer':
         return <TrainerSchedule />;
       case 'Admin':
@@ -31,7 +31,7 @@ function App() {
       ) : (
         renderComponentBasedOnRole(userRole)
       )}
-      {/* <MemberProfile /> */}
+      {/* <MemberProfile setUserRole={setUserRole}/> */}
     </div>
   );
 }

@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import './MemberProfile.css';
 
-const MemberProfile = () => {
+const MemberProfile = ({setUserRole}) => {
   const [classes, setClasses] = useState([]);
   const [firstName, setFirstName] = useState('');
   const [healthStats, setHealthStats] = useState([]);
+  const [personalInfo, setPersonalInfo] = useState({});
   const [exerciseRoutines, setExerciseRoutines] = useState([]);
   const [fitnessAcheivements, setfitnessAcheivements] = useState([]);
+  const [isViewingDashboard, setIsViewingDashboard] = useState(true);
   const [trainingSessions, setTrainingSessions] = useState({ registeredSessions: [], availableSessions: [] });
 
   const userId = sessionStorage.getItem("userId");
@@ -19,6 +21,7 @@ const MemberProfile = () => {
       fetchHealthStats();
       fetchClasses();
       fetchTrainingSessions();
+      fetchPersonalInfo();
     }
   }, []);
 
@@ -185,7 +188,20 @@ const MemberProfile = () => {
     } catch (error) {
       console.error('Cancellation failed:', error);
     }
-  };  
+  };
+
+  const fetchPersonalInfo = async () => {
+    try {
+      const response = await fetch(`/api/personal-info/${userId}`);
+      if (!response.ok) {
+        throw new Error('Could not fetch personal information');
+      }
+      const data = await response.json();
+      setPersonalInfo(data);
+    } catch (error) {
+      console.error('Error fetching personal information:', error);
+    }
+  }
 
   const latestHealthMetric = healthStats[0] ? (
     <div className="left-box">
@@ -207,83 +223,116 @@ const MemberProfile = () => {
 
   return (
     <div className="profile-container">
-      <div className="top-bar">
-        <h1>Welcome, {firstName}</h1>
-        <div className="profile-picture">
-          <h1>{firstName[0]}</h1>
-        </div>
-      </div>
-      <div className="columns">
-        <div className="left-section">
-          <div className="left-box">
-            <h2>Exercise Routines:</h2>
-            <ul>
-              {exerciseRoutines.map(routine => (
-                <li key={routine.routine_id}>
-                  <strong>{routine.routine_name}</strong>: {routine.description}
-                </li>
-              ))}
-            </ul>
-          </div>
-          <div className="left-box">
-            <h2>Fitness Acheivements:</h2>
-            <ul>
-              {fitnessAcheivements.map(acheivement => (
-                <li key={acheivement.goal_id}>
-                  {acheivement.goal_description}
-                </li>
-              ))}
-            </ul>
-          </div>
-          {latestHealthMetric}
-        </div>
-        <div className="right-section">
-          <div className="right-box">
-            <div className="classes-section">
-              <h3>Registered Classes:</h3>
-              <ul className="classes-list">
-                {registeredClasses.map((classItem) => (
-                  <li key={classItem.class_id}>
-                    <strong>{classItem.class_name}</strong> - {classItem.date.substring(0, 10)} at {classItem.start_time}, Room: {classItem.room_name}
-                    <button className="cancel-btn" onClick={() => handleCancelRegistration(classItem.class_id)}>Cancel Registration</button>
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <div className="classes-section">
-              <h3>Available Classes:</h3>
-              <ul className="classes-list">
-                {availableClasses.map((classItem) => (
-                  <li key={classItem.class_id}>
-                    <strong>{classItem.class_name}</strong> - {classItem.date.substring(0, 10)} at {classItem.start_time}, Room: {classItem.room_name}
-                    <button className="register-btn" onClick={() => handleRegisterClass(classItem.class_id)}>Register</button>
-                  </li>
-                ))}
-              </ul>
+      {isViewingDashboard ? (
+        <>
+          <div className="top-bar">
+            <h1>Welcome, {firstName}</h1>
+            <div className="profile-picture" onClick={() => setIsViewingDashboard(false)}>
+              <h1>{firstName[0]}</h1>
             </div>
           </div>
-          <div className="right-box">
-            <h2>Registered Training Sessions:</h2>
-            <ul className="training-sessions-list">
-              {trainingSessions.registeredSessions.map(session => (
-                <li key={session.session_id}>
-                  <strong>{session.trainer_name}</strong> - {session.date.substring(0, 10)} at {session.start_time}, Room: {session.room_name}
-                  <button className="cancel-btn" onClick={() => handleCancelTrainingSession(session.session_id)}>Cancel Reservation</button>
-                </li>
-              ))}
-            </ul>
-            <h2>Available Training Sessions:</h2>
-            <ul className="training-sessions-list">
-              {trainingSessions.availableSessions.map(session => (
-                <li key={session.session_id}>
-                  <strong>{session.trainer_name}</strong> - {session.date.substring(0, 10)} at {session.start_time}, Room: {session.room_name}
-                  <button className="register-btn" onClick={() => handleRegisterTrainingSession(session.session_id)}>Register</button>
-                </li>
-              ))}
-            </ul>
+          <div className="columns">
+            <div className="left-section">
+              <div className="left-box">
+                <h2>Exercise Routines:</h2>
+                <ul>
+                  {exerciseRoutines.map(routine => (
+                    <li key={routine.routine_id}>
+                      <strong>{routine.routine_name}</strong>: {routine.description}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <div className="left-box">
+                <h2>Fitness Acheivements:</h2>
+                <ul>
+                  {fitnessAcheivements.map(acheivement => (
+                    <li key={acheivement.goal_id}>
+                      {acheivement.goal_description}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              {latestHealthMetric}
+            </div>
+            <div className="right-section">
+              <div className="right-box">
+                <div className="classes-section">
+                  <h2>Registered Classes:</h2>
+                  <ul className="classes-list">
+                    {registeredClasses.map((classItem) => (
+                      <li key={classItem.class_id}>
+                        <strong>{classItem.class_name}</strong> - {classItem.date.substring(0, 10)} at {classItem.start_time}, Room: {classItem.room_name}
+                        <button className="cancel-btn" onClick={() => handleCancelRegistration(classItem.class_id)}>Cancel Registration</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+                <div className="classes-section">
+                  <h2>Available Classes:</h2>
+                  <ul className="classes-list">
+                    {availableClasses.map((classItem) => (
+                      <li key={classItem.class_id}>
+                        <strong>{classItem.class_name}</strong> - {classItem.date.substring(0, 10)} at {classItem.start_time}, Room: {classItem.room_name}
+                        <button className="register-btn" onClick={() => handleRegisterClass(classItem.class_id)}>Register</button>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+              <div className="right-box">
+                <h2>Registered Training Sessions:</h2>
+                <ul className="training-sessions-list">
+                  {trainingSessions.registeredSessions.map(session => (
+                    <li key={session.session_id}>
+                      <strong>{session.trainer_name}</strong> - {session.date.substring(0, 10)} at {session.start_time}, Room: {session.room_name}
+                      <button className="cancel-btn" onClick={() => handleCancelTrainingSession(session.session_id)}>Cancel Reservation</button>
+                    </li>
+                  ))}
+                </ul>
+                <h2>Available Training Sessions:</h2>
+                <ul className="training-sessions-list">
+                  {trainingSessions.availableSessions.map(session => (
+                    <li key={session.session_id}>
+                      <strong>{session.trainer_name}</strong> - {session.date.substring(0, 10)} at {session.start_time}, Room: {session.room_name}
+                      <button className="register-btn" onClick={() => handleRegisterTrainingSession(session.session_id)}>Register</button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
           </div>
-        </div>
-      </div>
+        </>
+      ) : (
+        <>
+          <div className="top-bar">
+            <h1>Manage Your Profile</h1>
+            <div className="back-to-dashboard" onClick={() => setIsViewingDashboard(true)}>
+              <h3>back to dashboard</h3>
+            </div>
+            <div className="logout" onClick={() => setUserRole(null)}>
+              <h3>logout</h3>
+            </div>
+          </div>
+          <div className="profile-management-container">
+            <div className="middle-box">
+              <h2>Personal Information:</h2>
+              <p>Email: {personalInfo.email}</p>
+              <p>Phone: {personalInfo.phone}</p>
+              <p>Address: {personalInfo.address}</p>
+            </div>
+            <div className="middle-box">
+              <h2>Fitness Goals:</h2>
+              some data here...
+            </div>
+            <div className="middle-box">
+              <h2>Health Stats:</h2>
+              some data here...
+            </div>
+          </div>
+        </>
+      )}
+      
     </div>
   );
 };

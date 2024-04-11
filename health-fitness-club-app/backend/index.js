@@ -132,7 +132,8 @@ app.get('/api/health-stats/:userId', async (req, res) => {
 app.get('/api/members', async (req, res) => {
   try {
     const members = await pool.query(
-      `SELECT * FROM user_account WHERE role = 'member'`
+      `SELECT * FROM user_account 
+      WHERE role = 'Member'`
     );
     res.json(members.rows);
   } catch (err) {
@@ -143,23 +144,23 @@ app.get('/api/members', async (req, res) => {
 
 // Endpoint to create a training session with a booking slot 
 app.post('/api/create-training-session', async (req, res) => {
-  const { trainerId, memberId, date, startTime, endTime } = req.body;
+  const { trainerId, date, startTime, endTime, roomId} = req.body;
   try {
     await pool.query('BEGIN');
     
     const bookingSlot = await pool.query(
-      `INSERT INTO booking_slot (date, start_time, end_time)
+      `INSERT INTO booking_slot (date, start_time, end_time, room_id)
        VALUES ($1, $2, $3) 
        RETURNING slot_id`,
-       [date, startTime, endTime]
+       [date, startTime, endTime, roomId]
     );
 
     const slotId = bookingSlot.rows[0].slot_id;
 
     await pool.query(
-      `INSERT INTO training_session (trainer_id, member_id, slot_id)
+      `INSERT INTO training_session (trainer_id, NULL, slot_id)
        VALUES ($1, $2, $3)`,
-      [trainerId, memberId, slotId]
+      [trainerId, slotId]
     );
 
     await pool.query('COMMIT');

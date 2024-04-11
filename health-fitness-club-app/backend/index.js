@@ -128,6 +128,9 @@ app.get('/api/health-stats/:userId', async (req, res) => {
   }
 });
 
+/*
+Trainer Functionality
+*/
 // Endpoint to get list of members
 app.get('/api/members', async (req, res) => {
   try {
@@ -144,33 +147,30 @@ app.get('/api/members', async (req, res) => {
 
 // Endpoint to create a training session with a booking slot 
 app.post('/api/create-training-session', async (req, res) => {
-  const { trainerId, date, startTime, endTime, roomId} = req.body;
+  const { userId, memberId, date, startTime, endTime, selectedRoom} = req.body;
   try {
     await pool.query('BEGIN');
-    
     const bookingSlot = await pool.query(
       `INSERT INTO booking_slot (date, start_time, end_time, room_id)
-       VALUES ($1, $2, $3) 
+       VALUES ($1, $2, $3, $4) 
        RETURNING slot_id`,
-       [date, startTime, endTime, roomId]
+       [date, startTime, endTime, selectedRoom]
     );
 
     const slotId = bookingSlot.rows[0].slot_id;
 
-    await pool.query(
-      `INSERT INTO training_session (trainer_id, NULL, slot_id)
+    const trainingSession = await pool.query(
+      `INSERT INTO training_session (trainer_id, member_id, slot_id)
        VALUES ($1, $2, $3)`,
-      [trainerId, slotId]
+      [userId, memberId || null, slotId]
     );
 
     await pool.query('COMMIT');
-    res.json({ message: 'New Training Session Created' });
+    res.json({message: 'New Training Session Created' });
   } catch (err) {
     await pool.query('ROLLBACK');
     console.error(err.message);
     res.status(500).json({ error: err.message });
-  } finally  {
-    await pool.end();
   }
 });
 
@@ -179,12 +179,27 @@ app.get('/api/training-sessions/:userId', async (req, res) => {
   const { userId } = req.params;
   try {
     const trainingSessions = await pool.query(
-      `SELECT * 
-      FROM training_session 
-      WHERE trainer_id = $1`,
+      `SELECT ts.*, bs.date, bs.start_time, bs.end_time, r.room_name
+       FROM training_session ts
+       JOIN booking_slot bs ON ts.slot_id = bs.slot_id
+       JOIN room r ON bs.room_id = r.room_id  -- Join with the room table
+       WHERE ts.trainer_id = $1`,
       [userId]
     );
     res.json(trainingSessions.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to get rooms for dropdown
+app.get('/api/rooms', async (req, res) => {
+  try {
+    const rooms = await pool.query(
+      `SELECT * FROM room`
+    );
+    res.json(rooms.rows);
   } catch (err) {
     console.error(err.message);
     res.status(500).json({ error: err.message });

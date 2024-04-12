@@ -18,7 +18,7 @@ function App() {
       case 'Trainer':
         return <TrainerSchedule />;
       case 'Admin':
-        return <AdminPanel />;
+        return <AdminPanel setUserRole={setUserRole}/>;
       default:
         return null;
     }

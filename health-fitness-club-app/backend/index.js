@@ -577,6 +577,261 @@ app.delete('/api/exercise-routines/:routineId', async (req, res) => {
   }
 });
 
+// Backend endpoint to fetch the list of room bookings
+app.get('/api/room-bookings', async (req, res) => {
+  try {
+    const roomBookingsQuery = `
+      SELECT r.room_name, bs.date, bs.start_time, bs.end_time, bs.slot_id
+      FROM booking_slot bs
+      INNER JOIN room r ON bs.room_id = r.room_id
+      ORDER BY r.room_name, bs.date, bs.start_time
+    `;
+    const roomBookingsResult = await pool.query(roomBookingsQuery);
+    const roomBookingsData = roomBookingsResult.rows;
+
+    const organizedBookings = {};
+    roomBookingsData.forEach(booking => {
+      const roomName = booking.room_name;
+      if (!organizedBookings[roomName]) {
+        organizedBookings[roomName] = [];
+      }
+      organizedBookings[roomName].push({
+        date: booking.date,
+        start_time: booking.start_time,
+        end_time: booking.end_time,
+        slot_id: booking.slot_id,
+      });
+    });
+
+    res.json(organizedBookings);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/classes', async (req, res) => {
+  try {
+    const classesQuery = `
+      SELECT c.class_name, bs.date, bs.start_time, bs.end_time, c.class_id, c.slot_id
+      FROM class c
+      INNER JOIN booking_slot bs ON c.slot_id = bs.slot_id
+      ORDER BY bs.date, bs.start_time
+    `;
+    const classesResult = await pool.query(classesQuery);
+    const classesData = classesResult.rows;
+
+    res.json(classesData);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to get a list of existing rooms
+app.get('/api/rooms', async (req, res) => {
+  try {
+    const roomsQuery = `SELECT * FROM room`;
+    const roomsResult = await pool.query(roomsQuery);
+    res.json(roomsResult.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to create a new class
+app.post('/api/classes', async (req, res) => {
+  const { class_name, date, start_time, end_time, room_id } = req.body;
+  try {
+    await pool.query('BEGIN');
+
+    const bookingSlotQuery = `
+      INSERT INTO booking_slot (date, start_time, end_time, room_id)
+      VALUES ($1, $2, $3, $4) RETURNING slot_id`;
+
+    const bookingSlotResult = await pool.query(bookingSlotQuery, [date, start_time, end_time, room_id]);
+    const slotId = bookingSlotResult.rows[0].slot_id;
+
+      const classQuery = `
+        INSERT INTO class (class_name, room_id, slot_id)
+        VALUES ($1, $2, $3)`;
+      await pool.query(classQuery, [class_name, room_id, slotId]);
+  
+      await pool.query('COMMIT');
+      res.status(201).json({ message: 'Class added successfully!' });
+    } catch (err) {
+      await pool.query('ROLLBACK');
+      console.error(err.message);
+      res.status(500).json({ error: err.message });
+    }
+});
+
+// Backend endpoint to remove a class from the database
+app.delete('/api/classes/:classId/:slotId', async (req, res) => {
+  const { classId, slotId } = req.params;
+  try {
+    await pool.query('BEGIN');
+
+    await pool.query('DELETE FROM class_registration WHERE class_id = $1', [classId]);
+
+    await pool.query('DELETE FROM class WHERE class_id = $1', [classId]);
+
+    await pool.query('DELETE FROM booking_slot WHERE slot_id = $1', [slotId]);
+
+    await pool.query('COMMIT');
+    res.status(200).json({ message: 'Class removed successfully!' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.put('/api/classes/:classId/:slotId', async (req, res) => {
+  const { classId, slotId } = req.params;
+  const { date, start_time, end_time } = req.body;
+  try {
+    const updateQuery = `
+      UPDATE booking_slot
+      SET date = $1, start_time = $2, end_time = $3
+      WHERE slot_id = $4
+    `;
+    const updateResult = await pool.query(updateQuery, [date, start_time, end_time, slotId]);
+
+    if (updateResult.rowCount === 0) {
+      throw new Error('No booking slot found with the provided slot_id.');
+    }
+
+    res.status(200).json({ message: 'Class updated successfully!' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to get a list of existing equipment
+app.get('/api/equipment', async (req, res) => {
+  try {
+    const equipmentQuery = `SELECT * FROM equipment`;
+    const equipmentResult = await pool.query(equipmentQuery);
+    res.json(equipmentResult.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to create new equipment
+app.post('/api/equipment', async (req, res) => {
+  const { name, status } = req.body;
+  try {
+    const newEquipmentQuery = `
+      INSERT INTO equipment (name, status)
+      VALUES ($1, $2)
+      RETURNING *`;
+    const newEquipmentResult = await pool.query(newEquipmentQuery, [name, status]);
+    res.status(201).json(newEquipmentResult.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to delete equipment by id
+app.delete('/api/equipment/:equipmentId', async (req, res) => {
+  const { equipmentId } = req.params;
+  try {
+    const deleteEquipmentQuery = `DELETE FROM equipment WHERE equipment_id = $1`;
+    const deleteResult = await pool.query(deleteEquipmentQuery, [equipmentId]);
+
+    if (deleteResult.rowCount === 0) {
+      return res.status(404).json({ message: 'No equipment found with the provided ID.' });
+    }
+
+    res.status(200).json({ message: 'Equipment removed successfully!' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to update the status of equipment by id
+app.patch('/api/equipment/status/:equipmentId', async (req, res) => {
+  const { equipmentId } = req.params;
+  const { status } = req.body;
+  const validStatuses = ['Available', 'Repairing', 'Unavailable'];
+
+  if (!validStatuses.includes(status)) {
+    return res.status(400).json({ message: 'Invalid status. Status must be one of the following: Available, Repairing, Unavailable.' });
+  }
+
+  try {
+    const updateStatusQuery = `
+      UPDATE equipment
+      SET status = $1
+      WHERE equipment_id = $2
+      RETURNING *`;
+    const updateResult = await pool.query(updateStatusQuery, [status, equipmentId]);
+
+    if (updateResult.rowCount === 0) {
+      return res.status(404).json({ message: 'No equipment found with the provided ID.' });
+    }
+
+    res.status(200).json({ message: 'Equipment status updated successfully!', equipment: updateResult.rows[0] });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to get a list of all payments
+app.get('/api/payments', async (req, res) => {
+  try {
+    const paymentsQuery = `
+      SELECT p.transaction_id, p.member_id, p.sum, p.date, p.payment_method,
+             u.first_name, u.last_name
+      FROM payment AS p
+      JOIN user_account AS u ON p.member_id = u.user_id
+      ORDER BY p.date DESC`;
+    const paymentsResult = await pool.query(paymentsQuery);
+    res.json(paymentsResult.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to cancel a booking
+app.delete('/api/bookings/cancel/:slotId', async (req, res) => {
+  const { slotId } = req.params;
+  try {
+    await pool.query('BEGIN');
+    
+    const classQuery = 'SELECT class_id FROM class WHERE slot_id = $1';
+    const classRes = await pool.query(classQuery, [slotId]);
+
+    if (classRes.rowCount > 0) {
+      const classId = classRes.rows[0].class_id;
+      await pool.query('DELETE FROM class_registration WHERE class_id = $1', [classId]);
+
+      await pool.query('DELETE FROM class WHERE class_id = $1', [classId]);
+    } else {
+      await pool.query('DELETE FROM training_session WHERE slot_id = $1', [slotId]);
+    }
+
+    await pool.query('DELETE FROM booking_slot WHERE slot_id = $1', [slotId]);
+    
+    await pool.query('COMMIT');
+    res.status(200).json({ message: 'Booking cancelled successfully!' });
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
 // This route will redirect any requests that don't match an API endpoint or static file to the React app
 app.get('*', (req, res) => {
   res.sendFile(path.join(__dirname, '../build/index.html'));

@@ -31,7 +31,6 @@ function App() {
       ) : (
         renderComponentBasedOnRole(userRole)
       )}
-      {/* <MemberProfile setUserRole={setUserRole}/> */}
     </div>
   );
 }

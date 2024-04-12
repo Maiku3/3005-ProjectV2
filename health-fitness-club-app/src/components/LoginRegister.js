@@ -2,14 +2,17 @@ import React, { useState } from 'react';
 import './LoginRegister.css';
 
 const LoginRegister = ({ onLogin }) => {
-  const [isLogin, setIsLogin] = useState(true);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [firstName, setFirstName] = useState('');
-  const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
+  const [email, setEmail] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
   const [address, setAddress] = useState('');
+  const [isLogin, setIsLogin] = useState(true);
+  const [password, setPassword] = useState('');
+  const [lastName, setLastName] = useState('');
   const [birthday, setBirthday] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
 
   const handleLogin = async () => {
     if (email && password) {
@@ -39,11 +42,23 @@ const LoginRegister = ({ onLogin }) => {
   };
 
   const handleRegister = async () => {
-    if (email && password && firstName && lastName && phone && address && birthday) {
+    if (email && password && firstName && lastName && phone && address && birthday && weight && height && paymentMethod) {
       try {
         const role = 'Member';
-        const joinDate = new Date().toISOString().split('T')[0]; // Current date in YYYY-MM-DD format
+        const joinDate = new Date().toISOString().split('T')[0];
         const membershipEndDate = new Date(new Date().setFullYear(new Date().getFullYear() + 1)).toISOString().split('T')[0];
+
+        if (isNaN(weight) || isNaN(height)) {
+          alert('Weight and height must be numbers.');
+          return;
+        }
+
+        // Convert weight and height to numbers
+        const numericWeight = Number(weight);
+        const numericHeight = Number(height);
+
+        // Calculate BMI
+        const bmi = numericWeight / (Math.pow(numericHeight / 100, 2));
 
         const response = await fetch('/api/register', {
           method: 'POST',
@@ -61,6 +76,10 @@ const LoginRegister = ({ onLogin }) => {
             role,
             joinDate,
             membershipEndDate,
+            weight: numericWeight,
+            height: numericHeight,
+            bmi,
+            paymentMethod,
           }),
         });
 
@@ -100,6 +119,10 @@ const LoginRegister = ({ onLogin }) => {
           <input className="input-field" type="text" placeholder="Address" value={address} onChange={(e) => setAddress(e.target.value)} />
           <label htmlFor="birthday" className="birthday-label">Birthday:</label>
           <input className="input-field" type="date" placeholder="Birthday" value={birthday} onChange={(e) => setBirthday(e.target.value)} />
+          <input className="input-field" type="text" placeholder="Weight (kg)" value={weight} onChange={(e) => setWeight(e.target.value)} />
+          <input className="input-field" type="text" placeholder="Height (cm)" value={height} onChange={(e) => setHeight(e.target.value)} />
+          <label htmlFor="birthday" className="membership-cost-label">Membership Cost: $99.99</label>
+          <input className="input-field" type="text" placeholder="Payment Method" value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value)} />
           <button className="action-button" onClick={handleRegister}>Register</button>
           <button className="toggle-button" onClick={() => setIsLogin(true)}>Back to Login</button>
         </>

@@ -31,10 +31,20 @@ app.post('/api/login', async (req, res) => {
 
 // Registration endpoint
 app.post('/api/register', async (req, res) => {
-  const { email, password, firstName, lastName, phone, address, birthday, role, joinDate, membershipEndDate } = req.body;
+  const { email, password, firstName, lastName, phone, address, birthday, role, joinDate, membershipEndDate, weight, height, bmi, paymentMethod } = req.body;
   
   try {
     await pool.query('BEGIN');
+
+    // Check if the email already exists
+    const emailCheck = await pool.query(
+      `SELECT 1 FROM user_account WHERE email = $1`,
+      [email]
+    );
+
+    if (emailCheck.rowCount > 0) {
+      return res.status(400).json({ error: 'Email already exists' });
+    }
 
     const newUser = await pool.query(
       `INSERT INTO user_account (email, password, first_name, last_name, phone, address, birthday, role)
@@ -48,6 +58,18 @@ app.post('/api/register', async (req, res) => {
       `INSERT INTO member (user_id, join_date, membership_end_date)
        VALUES ($1, $2, $3)`,
       [user_id, joinDate, membershipEndDate]
+    );
+
+    await pool.query(
+      `INSERT INTO health_metric (member_id, weight, height, bmi, date)
+       VALUES ($1, $2, $3, $4, $5)`,
+      [user_id, weight, height, bmi, joinDate]
+    );
+
+    await pool.query(
+      `INSERT INTO payment (member_id, sum, date, payment_method)
+       VALUES ($1, $2, $3, $4)`,
+      [user_id, 99.99, joinDate, paymentMethod]
     );
 
     await pool.query('COMMIT');
@@ -364,6 +386,196 @@ app.get('/api/personal-info/:userId', async (req, res) => {
   }
 });
 
+// Backend endpoint to update personal information for a specific user
+app.put('/api/update-info/:userId', async (req, res) => {
+  const { userId } = req.params;
+  const { field, value } = req.body;
+
+  const updateQuery = {
+    email: `UPDATE user_account SET email = $1 WHERE user_id = $2 RETURNING email`,
+    phone: `UPDATE user_account SET phone = $1 WHERE user_id = $2 RETURNING phone`,
+    address: `UPDATE user_account SET address = $1 WHERE user_id = $2 RETURNING address`,
+  };
+
+  try {
+    const updateResult = await pool.query(updateQuery[field], [value, userId]);
+    if (updateResult.rows.length > 0) {
+      res.json(updateResult.rows[0]);
+    } else {
+      res.status(404).json({ error: 'Update failed or no changes made' });
+    }
+  } catch (err) {
+    if (err.code === '23505') {
+      res.status(409).json({ error: 'Email already exists' });
+    } else {
+      console.error(err.message);
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+// Backend endpoint to get fitness goals for a specific member
+app.get('/api/fitness-goals/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  try {
+    const fitnessGoals = await pool.query(
+      `SELECT goal_id, goal_description, target_date, start_date, is_completed FROM fitness_goal WHERE member_id = $1`,
+      [memberId]
+    );
+    res.json(fitnessGoals.rows);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to add a new fitness goal for a specific member
+app.post('/api/fitness-goals/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  const { goalDescription, targetDate } = req.body;
+  const startDate = new Date();
+
+  try {
+    const newGoal = await pool.query(
+      `INSERT INTO fitness_goal (member_id, goal_description, target_date, start_date, is_completed)
+       VALUES ($1, $2, $3, $4, $5)
+       RETURNING *`,
+      [memberId, goalDescription, targetDate, startDate, false]
+    );
+    res.status(201).json(newGoal.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to delete a fitness goal for a specific member
+app.delete('/api/fitness-goals/:goalId', async (req, res) => {
+  const { goalId } = req.params;
+
+  try {
+    await pool.query(
+      `DELETE FROM fitness_goal WHERE goal_id = $1`,
+      [goalId]
+    );
+    res.status(200).json({ message: 'Goal deleted successfully' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to mark a fitness goal as completed for a specific member
+app.put('/api/fitness-goals/complete/:goalId', async (req, res) => {
+  const { goalId } = req.params;
+
+  try {
+    const updateGoal = await pool.query(
+      `UPDATE fitness_goal SET is_completed = TRUE WHERE goal_id = $1 RETURNING *`,
+      [goalId]
+    );
+    if (updateGoal.rows.length === 0) {
+      return res.status(404).json({ error: 'Goal not found' });
+    }
+    res.json(updateGoal.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to update weight, height, and recalculate BMI
+app.put('/api/health-metrics/:memberId', async (req, res) => {
+  const { memberId } = req.params;
+  let { weight, height } = req.body;
+
+  // Start a database transaction
+  try {
+    await pool.query('BEGIN');
+
+    const existingMetrics = await pool.query(
+      `SELECT weight, height FROM health_metric WHERE member_id = $1 ORDER BY date DESC LIMIT 1`,
+      [memberId]
+    );
+
+    if (existingMetrics.rowCount === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(404).json({ error: 'Health metrics not found for the given member ID' });
+    }
+
+    if (weight === 0 || height === 0) {
+      await pool.query('ROLLBACK');
+      return res.status(400).json({ error: 'Height or weight cannot be zero' });
+    }
+
+    const newBMI = weight / Math.pow(height / 100, 2);
+
+    // Ensure new values do not exceed defined scale and precision
+    if (newBMI >= 1000 || weight >= 10000 || height >= 1000) {
+      await pool.query('ROLLBACK');
+      return res.status(400).json({ error: 'Numeric field overflow' });
+    }
+
+    const updateHealthMetrics = await pool.query(
+      `UPDATE health_metric
+       SET weight = $1,
+           height = $2,
+           bmi = $3
+       WHERE member_id = $4
+       RETURNING *`,
+      [weight, height, newBMI, memberId]
+    );
+
+    await pool.query('COMMIT');
+
+    res.json(updateHealthMetrics.rows[0]);
+  } catch (err) {
+    await pool.query('ROLLBACK');
+    console.error(err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Backend endpoint to handle the addition of a new exercise routine
+app.post('/api/exercise-routines', async (req, res) => {
+  const { member_id, routine_name, description } = req.body;
+
+  try {
+    const newRoutine = await pool.query(
+      `INSERT INTO exercise_routine (member_id, routine_name, description)
+       VALUES ($1, $2, $3)
+       RETURNING *`,
+      [member_id, routine_name, description]
+    );
+
+    res.status(201).json(newRoutine.rows[0]);
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+app.delete('/api/exercise-routines/:routineId', async (req, res) => {
+  const { routineId } = req.params;
+
+  try {
+    const deleteRoutine = await pool.query(
+      `DELETE FROM exercise_routine
+       WHERE routine_id = $1
+       RETURNING *`,
+      [routineId]
+    );
+
+    if (deleteRoutine.rowCount === 0) {
+      return res.status(404).json({ error: 'Exercise routine not found' });
+    }
+
+    res.status(200).json({ message: 'Exercise routine removed' });
+  } catch (err) {
+    console.error(err.message);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
 
 // This route will redirect any requests that don't match an API endpoint or static file to the React app
 app.get('*', (req, res) => {

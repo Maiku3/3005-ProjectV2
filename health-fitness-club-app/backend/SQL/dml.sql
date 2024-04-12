@@ -17,8 +17,8 @@ INSERT INTO admin (user_id) VALUES
 ((SELECT user_id FROM user_account WHERE email='admin@example.com'));
 
 INSERT INTO health_metric (member_id, weight, height, bmi, date) VALUES
-((SELECT user_id FROM member WHERE user_id = (SELECT user_id FROM user_account WHERE email='john.doe@example.com')), 75.50, 1.78, 23.84, '2023-03-15'),
-((SELECT user_id FROM member WHERE user_id = (SELECT user_id FROM user_account WHERE email='mike.jones@example.com')), 90.50, 1.98, 23.1, '2023-03-15');
+((SELECT user_id FROM member WHERE user_id = (SELECT user_id FROM user_account WHERE email='john.doe@example.com')), 75.50, 178, 23.84, '2023-03-15'),
+((SELECT user_id FROM member WHERE user_id = (SELECT user_id FROM user_account WHERE email='mike.jones@example.com')), 90.50, 198, 23.1, '2023-03-15');
 
 
 INSERT INTO fitness_goal (member_id, goal_description,  target_date, start_date, is_completed) VALUES

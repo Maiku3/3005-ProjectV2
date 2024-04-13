@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
-import LoginRegister from './components/LoginRegister';
-import MemberProfile from './components/MemberProfile';
-import TrainerSchedule from './components/TrainerSchedule';
-import AdminPanel from './components/AdminPanel';
+import LoginRegister from './components/LoginRegister/LoginRegister';
+import MemberProfile from './components/MemberProfile/MemberProfile';
+import TrainerSchedule from './components/TrainerSchedule/TrainerSchedule';
+import AdminPanel from './components/AdminPanel/AdminPanel';
 
 function App() {
   const [userRole, setUserRole] = useState(null);
@@ -16,7 +16,7 @@ function App() {
       case 'Member':
         return <MemberProfile setUserRole={setUserRole}/>;
       case 'Trainer':
-        return <TrainerSchedule />;
+        return <TrainerSchedule setUserRole={setUserRole}/>;
       case 'Admin':
         return <AdminPanel setUserRole={setUserRole}/>;
       default:

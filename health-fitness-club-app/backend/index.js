@@ -150,9 +150,6 @@ app.get('/api/health-stats/:userId', async (req, res) => {
   }
 });
 
-/*
-Trainer Functionality
-*/
 // Endpoint to get list of members
 app.get('/api/members', async (req, res) => {
   try {
@@ -828,6 +825,32 @@ app.delete('/api/bookings/cancel/:slotId', async (req, res) => {
     await pool.query('ROLLBACK');
     console.error(err.message);
     res.status(500).json({ error: err.message });
+  }
+});
+
+// Endpoint to delete a training session and associated booking slot
+app.delete('/api/delete-training-session', async (req, res) => {
+  const { sessionId, slotId } = req.body;
+  
+  const client = await pool.connect();
+
+  try {
+    await client.query('BEGIN');
+
+    const deleteSessionQuery = 'DELETE FROM training_session WHERE session_id = $1';
+    await client.query(deleteSessionQuery, [sessionId]);
+
+    const deleteSlotQuery = 'DELETE FROM booking_slot WHERE slot_id = $1';
+    await client.query(deleteSlotQuery, [slotId]);
+
+    await client.query('COMMIT');
+    res.status(200).send('Session canceled successfully.');
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Error canceling the session:', error);
+    res.status(500).json({ error: error.message });
+  } finally {
+    client.release();
   }
 });
 
